@@ -9,6 +9,7 @@ export async function findUserById(userId: number) {
       nim: users.nim,
       email: users.email,
       fullName: users.fullName,
+      profileImageUrl: users.profileImageUrl,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     })
@@ -16,6 +17,15 @@ export async function findUserById(userId: number) {
     .where(eq(users.id, userId))
     .limit(1);
   return rows[0] ?? null;
+}
+
+export async function findUserNimById(userId: number): Promise<string | null> {
+  const rows = await db
+    .select({ nim: users.nim })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return rows[0]?.nim ?? null;
 }
 
 export async function updateUserFullName(userId: number, fullName: string) {
@@ -28,6 +38,27 @@ export async function updateUserFullName(userId: number, fullName: string) {
       nim: users.nim,
       email: users.email,
       fullName: users.fullName,
+      profileImageUrl: users.profileImageUrl,
+      createdAt: users.createdAt,
+      updatedAt: users.updatedAt,
+    });
+  return rows[0] ?? null;
+}
+
+export async function updateProfileImageUrl(
+  userId: number,
+  profileImageUrl: string,
+) {
+  const rows = await db
+    .update(users)
+    .set({ profileImageUrl, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .returning({
+      id: users.id,
+      nim: users.nim,
+      email: users.email,
+      fullName: users.fullName,
+      profileImageUrl: users.profileImageUrl,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
     });
