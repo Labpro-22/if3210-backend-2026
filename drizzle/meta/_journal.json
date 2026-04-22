@@ -15,6 +15,13 @@
       "when": 1773689223086,
       "tag": "0001_seed_users",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1776889441741,
+      "tag": "0002_curious_frog_thor",
+      "breakpoints": true
     }
   ]
 }
