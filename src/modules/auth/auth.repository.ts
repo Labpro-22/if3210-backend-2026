@@ -10,6 +10,7 @@ export async function findUserByEmail(email: string) {
       email: users.email,
       passwordHash: users.passwordHash,
       fullName: users.fullName,
+      profileImageUrl: users.profileImageUrl,
     })
     .from(users)
     .where(eq(users.email, email))

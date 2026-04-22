@@ -6,6 +6,7 @@ import { errorMiddleware } from "./shared/http/error-middleware";
 import { authRouter } from "./modules/auth/auth.router";
 import { profileRouter } from "./modules/profile/profile.router";
 import { familyRouter } from "./modules/family/family.router";
+import { notificationRouter } from "./modules/notification/notification.router";
 import { liveRouter } from "./modules/live/live.ws";
 import { serveStatic } from "hono/bun";
 import { websocket } from "hono/bun";
@@ -18,6 +19,7 @@ app.onError(errorMiddleware);
 
 // Static assets
 app.use("/assets/*", serveStatic({ root: "./public" }));
+app.use("/uploads/*", serveStatic({ root: "./" }));
 
 // Health check
 app.get("/api/health", (c) => c.json({ data: { status: "ok" } }));
@@ -26,6 +28,7 @@ app.get("/api/health", (c) => c.json({ data: { status: "ok" } }));
 app.route("/api", authRouter);
 app.route("/api", profileRouter);
 app.route("/api", familyRouter);
+app.route("/api", notificationRouter);
 app.route("/", liveRouter);
 
 const port = parseInt(process.env.PORT || "3000");

@@ -6,14 +6,16 @@ export async function createFamilyTx(
   createdBy: number,
   name: string,
   iconUrl: string,
-  familyCode: string
+  familyCode: string,
 ) {
   return await db.transaction(async (tx) => {
     const [family] = await tx
       .insert(families)
       .values({ name, iconUrl, familyCode, createdBy })
       .returning();
-    await tx.insert(familyMemberships).values({ familyId: family!.id, userId: createdBy });
+    await tx
+      .insert(familyMemberships)
+      .values({ familyId: family!.id, userId: createdBy });
     return family!;
   });
 }
@@ -40,6 +42,7 @@ export async function listJoinedFamiliesWithMembers(userId: number) {
       createdAt: families.createdAt,
       updatedAt: families.updatedAt,
       memberId: users.id,
+      memberProfileImageUrl: users.profileImageUrl,
       memberFullName: users.fullName,
       memberEmail: users.email,
       memberJoinedAt: familyMemberships.joinedAt,
@@ -50,13 +53,13 @@ export async function listJoinedFamiliesWithMembers(userId: number) {
       and(
         eq(familyMemberships.familyId, families.id),
         // first join: ensure user is a member
-        eq(families.id, families.id)
-      )
+        eq(families.id, families.id),
+      ),
     )
     .innerJoin(users, eq(users.id, familyMemberships.userId))
     .where(
       // only families the user belongs to
-      sql`${families.id} IN (SELECT family_id FROM family_memberships WHERE user_id = ${userId})`
+      sql`${families.id} IN (SELECT family_id FROM family_memberships WHERE user_id = ${userId})`,
     )
     .orderBy(desc(families.createdAt), asc(users.fullName));
   return rows;
@@ -75,7 +78,12 @@ export async function isFamilyMember(familyId: number, userId: number) {
   const rows = await db
     .select({ v: sql<number>`1` })
     .from(familyMemberships)
-    .where(and(eq(familyMemberships.familyId, familyId), eq(familyMemberships.userId, userId)))
+    .where(
+      and(
+        eq(familyMemberships.familyId, familyId),
+        eq(familyMemberships.userId, userId),
+      ),
+    )
     .limit(1);
   return rows.length > 0;
 }
@@ -86,6 +94,7 @@ export async function listFamilyMembers(familyId: number) {
       id: users.id,
       fullName: users.fullName,
       email: users.email,
+      profileImageUrl: users.profileImageUrl,
       joinedAt: familyMemberships.joinedAt,
     })
     .from(familyMemberships)
@@ -101,7 +110,12 @@ export async function joinFamily(familyId: number, userId: number) {
 export async function leaveFamily(familyId: number, userId: number) {
   await db
     .delete(familyMemberships)
-    .where(and(eq(familyMemberships.familyId, familyId), eq(familyMemberships.userId, userId)));
+    .where(
+      and(
+        eq(familyMemberships.familyId, familyId),
+        eq(familyMemberships.userId, userId),
+      ),
+    );
 }
 
 // Discover
@@ -110,7 +124,10 @@ export async function findMaxFamilyId() {
   return rows[0]?.maxId ?? 0;
 }
 
-export async function listDiscoverFamiliesByIds(candidateIds: number[], userId: number) {
+export async function listDiscoverFamiliesByIds(
+  candidateIds: number[],
+  userId: number,
+) {
   if (candidateIds.length === 0) return [];
   const rows = await db
     .select({
@@ -118,6 +135,7 @@ export async function listDiscoverFamiliesByIds(candidateIds: number[], userId: 
       name: families.name,
       iconUrl: families.iconUrl,
       createdAt: families.createdAt,
+      memberProfileImageUrl: users.profileImageUrl,
       memberFullName: users.fullName,
       memberEmail: users.email,
     })
@@ -134,11 +152,11 @@ export async function listDiscoverFamiliesByIds(candidateIds: number[], userId: 
             .where(
               and(
                 eq(familyMemberships.familyId, families.id),
-                eq(familyMemberships.userId, userId)
-              )
-            )
-        )
-      )
+                eq(familyMemberships.userId, userId),
+              ),
+            ),
+        ),
+      ),
     )
     .orderBy(asc(families.id));
   return rows;
