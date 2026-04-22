@@ -1,7 +1,10 @@
 import type { WSContext } from "hono/ws";
 import { listSharedPeerUserIds } from "./live.repository";
 import { UpdatePresencePayloadDto } from "./live.dto";
-import { LiveValidationServiceError, LiveRateLimitServiceError } from "./live.error";
+import {
+  LiveValidationServiceError,
+  LiveRateLimitServiceError,
+} from "./live.error";
 import { db } from "../../db";
 import { users } from "../../db/schema";
 import { eq } from "drizzle-orm";
@@ -11,6 +14,7 @@ interface Connection {
   presence: any;
   fullName: string;
   email: string;
+  profileImageUrl: string | null;
 }
 
 const connections = new Map<number, Connection>();
@@ -33,10 +37,23 @@ function sendJson(ws: WSContext, data: any) {
 }
 
 export async function registerConnection(userId: number, ws: WSContext) {
-  // Fetch user info for broadcasts
-  const [user] = await db.select({ fullName: users.fullName, email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  const [user] = await db
+    .select({
+      fullName: users.fullName,
+      email: users.email,
+      profileImageUrl: users.profileImageUrl,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
 
-  connections.set(userId, { ws, presence: null, fullName: user?.fullName ?? "", email: user?.email ?? "" });
+  connections.set(userId, {
+    ws,
+    presence: null,
+    fullName: user?.fullName ?? "",
+    email: user?.email ?? "",
+    profileImageUrl: user?.profileImageUrl ?? null,
+  });
 
   // Send current presence of online peers
   const peerIds = await listSharedPeerUserIds(userId);
@@ -45,7 +62,13 @@ export async function registerConnection(userId: number, ws: WSContext) {
     if (peer?.presence) {
       sendJson(ws, {
         type: "member_presence_updated",
-        payload: { userId: peerId, email: peer.email, fullName: peer.fullName, ...peer.presence },
+        payload: {
+          userId: peerId,
+          email: peer.email,
+          fullName: peer.fullName,
+          profileImageUrl: peer.profileImageUrl,
+          ...peer.presence,
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -57,11 +80,17 @@ export function removeConnection(userId: number) {
   rateBuckets.delete(userId);
 }
 
-export async function handleUpdatePresence(userId: number, rawPayload: unknown) {
+export async function handleUpdatePresence(
+  userId: number,
+  rawPayload: unknown,
+) {
   checkRateLimit(userId);
 
   const result = UpdatePresencePayloadDto.safeParse(rawPayload);
-  if (!result.success) throw new LiveValidationServiceError(result.error.issues.map((i) => i.message).join(", "));
+  if (!result.success)
+    throw new LiveValidationServiceError(
+      result.error.issues.map((i) => i.message).join(", "),
+    );
 
   const conn = connections.get(userId);
   if (!conn) return;
@@ -76,6 +105,7 @@ export async function handleUpdatePresence(userId: number, rawPayload: unknown) 
       userId,
       email: conn.email,
       fullName: conn.fullName,
+      profileImageUrl: conn.profileImageUrl,
       ...payload,
     },
     timestamp: new Date().toISOString(),
@@ -88,5 +118,9 @@ export async function handleUpdatePresence(userId: number, rawPayload: unknown) 
 }
 
 export function handlePing(ws: WSContext) {
-  sendJson(ws, { type: "pong", payload: {}, timestamp: new Date().toISOString() });
+  sendJson(ws, {
+    type: "pong",
+    payload: {},
+    timestamp: new Date().toISOString(),
+  });
 }
