@@ -7,6 +7,8 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
+RUN mkdir -p /app/uploads
+
 EXPOSE 3000
 
 CMD ["bun", "run", "src/index.ts"]

@@ -35,14 +35,24 @@ function generateCode(): string {
 
 // --- Service methods ---
 
-export async function createFamily(userId: number, name: string, iconUrl: string) {
-  if (!ALLOWED_FAMILY_ICON_URLS.includes(iconUrl)) throw new InvalidFamilyIconServiceError();
+export async function createFamily(
+  userId: number,
+  name: string,
+  iconUrl: string,
+) {
+  if (!ALLOWED_FAMILY_ICON_URLS.includes(iconUrl))
+    throw new InvalidFamilyIconServiceError();
 
   let familyCode: string | null = null;
   for (let i = 0; i < 10; i++) {
     const candidate = generateCode();
     try {
-      const family = await repo.createFamilyTx(userId, name, iconUrl, candidate);
+      const family = await repo.createFamilyTx(
+        userId,
+        name,
+        iconUrl,
+        candidate,
+      );
       const members = await repo.listFamilyMembers(family.id);
       return {
         id: family.id,
@@ -55,7 +65,8 @@ export async function createFamily(userId: number, name: string, iconUrl: string
         members,
       };
     } catch (e: any) {
-      if (e?.code === "23505" && e?.constraint?.includes("family_code")) continue;
+      if (e?.code === "23505" && e?.constraint?.includes("family_code"))
+        continue;
       throw e;
     }
   }
@@ -86,6 +97,7 @@ export async function listMyFamilies(userId: number) {
       fullName: r.memberFullName,
       email: r.memberEmail,
       joinedAt: r.memberJoinedAt,
+      profileImageUrl: r.memberProfileImageUrl,
     });
   }
   return [...map.values()];
@@ -124,18 +136,25 @@ export async function getFamilyById(familyId: number, userId: number) {
   };
 }
 
-export async function joinFamily(userId: number, familyId: number, familyCode: string) {
+export async function joinFamily(
+  userId: number,
+  familyId: number,
+  familyCode: string,
+) {
   const family = await repo.findFamilyDetail(familyId);
   if (!family) throw new FamilyNotFoundServiceError();
-  if (family.familyCode.trim() !== familyCode) throw new FamilyCodeMismatchServiceError();
-  if (await repo.isFamilyMember(familyId, userId)) throw new AlreadyFamilyMemberServiceError();
+  if (family.familyCode.trim() !== familyCode)
+    throw new FamilyCodeMismatchServiceError();
+  if (await repo.isFamilyMember(familyId, userId))
+    throw new AlreadyFamilyMemberServiceError();
   await repo.joinFamily(familyId, userId);
 }
 
 export async function leaveFamily(userId: number, familyId: number) {
   const family = await repo.findFamilyDetail(familyId);
   if (!family) throw new FamilyNotFoundServiceError();
-  if (!(await repo.isFamilyMember(familyId, userId))) throw new NotFamilyMemberServiceError();
+  if (!(await repo.isFamilyMember(familyId, userId)))
+    throw new NotFamilyMemberServiceError();
   await repo.leaveFamily(familyId, userId);
 }
 
@@ -174,6 +193,7 @@ export async function discoverFamilies(userId: number) {
         collected.get(r.id).members.push({
           fullName: blurName(r.memberFullName),
           email: blurEmail(r.memberEmail!),
+          profileImageUrl: r.memberProfileImageUrl,
         });
       }
     }

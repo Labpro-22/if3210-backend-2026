@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - '5432:5432'
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,12 +13,19 @@ services:
   app:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/nimons360
-      PORT: "3000"
+      PORT: '3000'
+      GOOGLE_APPLICATION_CREDENTIALS: /app/.secret/service-account.json
+      GOOGLE_CLOUD_PROJECT: labpro-mad
+
     depends_on:
       - db
+    volumes:
+      - uploads:/app/uploads
+      - ./.secret:/app/.secret:ro
 
 volumes:
   pgdata:
+  uploads:
